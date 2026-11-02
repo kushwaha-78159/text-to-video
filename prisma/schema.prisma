@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum GenerationType {
+  TEXT_TO_VIDEO
+  IMAGE_TO_VIDEO
+  SCRIPT_TO_VIDEO
+}
+
+enum GenerationStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum CreditTransactionType {
+  PURCHASE
+  USAGE
+  REFUND
+  BONUS
+  SUBSCRIPTION
+}
+
+model User {
+  id                String         @id @default(cuid())
+  name              String?
+  email             String         @unique
+  passwordHash      String?
+  role              UserRole       @default(USER)
+  credits           Int            @default(100)
+  emailVerified     DateTime?
+  image             String?
+  projects          Project[]
+  generations       VideoGeneration[]
+  transactions      CreditTransaction[]
+  subscriptions     Subscription[]
+  settings          UserSettings?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([createdAt])
+}
+
+model UserSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  theme             String   @default("dark")
+  defaultModel      String?
+  defaultAspectRatio String  @default("16:9")
+  notifications     Boolean  @default(true)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Project {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus    @default(ACTIVE)
+  thumbnail   String?
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations VideoGeneration[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model AIProvider {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  enabled     Boolean  @default(true)
+  description String?
+  models      AIModel[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AIModel {
+  id            String       @id @default(cuid())
+  name          String
+  modelId       String       @unique
+  providerId    String
+  provider      AIProvider   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  enabled       Boolean      @default(true)
+  supportsImage Boolean      @default(false)
+  supportsText  Boolean      @default(true)
+  supportsVideo Boolean      @default(false)
+  creditCost    Int          @default(1)
+  generations   VideoGeneration[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([providerId, enabled])
+}
+
+model VideoGeneration {
+  id             String             @id @default(cuid())
+  userId         String
+  projectId      String?
+  modelId        String?
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  model          AIModel?           @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  type           GenerationType
+  status         GenerationStatus   @default(QUEUED)
+  prompt         String             @db.Text
+  enhancedPrompt String?            @db.Text
+  negativePrompt String?            @db.Text
+  aspectRatio    String             @default("16:9")
+  duration       Int                @default(5)
+  resolution     String             @default("720p")
+  outputUrl      String?
+  thumbnailUrl   String?
+  providerJobId  String?
+  errorMessage   String?            @db.Text
+  creditsUsed    Int                @default(0)
+  metadata       Json?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([projectId])
+}
+
+model CreditTransaction {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  type        CreditTransactionType
+  description String?
+  referenceId String?
+  createdAt   DateTime              @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               String
+  status             SubscriptionStatus @default(ACTIVE)
+  provider           String?
+  providerCustomerId String?
+  providerSubId      String?            @unique
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([userId, status])
+}
