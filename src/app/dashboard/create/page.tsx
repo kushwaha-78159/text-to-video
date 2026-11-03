@@ -91,7 +91,7 @@ export default function CreateVideoPage() {
 
         const status = String(statusData.status || "").toUpperCase();
 
-        if (status === "SUCCEEDED") {
+        if (status === "SUCCEEDED" || status === "COMPLETED") {
           const first = Array.isArray(statusData.output)
             ? statusData.output[0]
             : null;
@@ -107,7 +107,7 @@ export default function CreateVideoPage() {
           return;
         }
 
-        if (status === "FAILED" || status === "CANCELED") {
+        if (status === "FAILED" || status === "CANCELED" || status === "CANCELLED") {
           throw new Error(
             typeof statusData.failure === "string"
               ? statusData.failure

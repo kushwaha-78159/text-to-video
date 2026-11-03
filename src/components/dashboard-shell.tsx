@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity, Clapperboard, Clock3, Film, Gauge, LayoutDashboard,
+  Activity, Clapperboard, Clock3, Film, Gauge, LayoutDashboard, ShieldCheck,
   Menu, Settings2, Sparkles, WandSparkles, X
 } from "lucide-react";
 import { useState } from "react";
@@ -15,6 +15,7 @@ const navigation = [
   { label: "History", href: "/dashboard/history", icon: Clock3 },
   { label: "AI models", href: "/dashboard/models", icon: Gauge },
   { label: "Settings", href: "/dashboard/settings", icon: Settings2 },
+  { label: "Admin", href: "/dashboard/admin", icon: ShieldCheck },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {

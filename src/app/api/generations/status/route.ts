@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
   }
 
+  if (!process.env.RUNWAY_API_KEY) {
+    return NextResponse.json({ error: "Runway API key is not configured." }, { status: 503 });
+  }
+
   try {
     const taskId = new URL(request.url).searchParams.get("taskId");
     if (!taskId || !/^[0-9a-f-]{36}$/i.test(taskId)) {
