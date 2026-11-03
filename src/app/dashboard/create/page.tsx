@@ -16,6 +16,7 @@ export default function CreateVideoPage() {
   const [duration, setDuration] = useState("5");
   const [resolution, setResolution] = useState("1080p");
   const [fileName, setFileName] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [notice, setNotice] = useState("");
   const [storyboard, setStoryboard] = useState<any>(null);
   const [planning, setPlanning] = useState(false);
@@ -45,8 +46,8 @@ export default function CreateVideoPage() {
       return;
     }
 
-    if (mode === "image") {
-      setNotice("Image-to-video upload is not connected yet. Select Text to video or Script to video.");
+    if (mode === "image" && !imageFile) {
+      setNotice("Please select a PNG, JPG or WEBP image.");
       return;
     }
 
@@ -58,6 +59,24 @@ export default function CreateVideoPage() {
     setGenerationStatus("Submitting your video to Runway...");
 
     try {
+      let imageUrl: string | undefined;
+
+      if (mode === "image" && imageFile) {
+        setGenerationStatus("Uploading your starting image...");
+        const form = new FormData();
+        form.append("file", imageFile);
+        const uploadResponse = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: form,
+        });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.error || "Image upload failed.");
+        }
+        imageUrl = uploadData.url;
+      }
+
+      setGenerationStatus("Submitting your video to Runway...");
       const response = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,6 +84,8 @@ export default function CreateVideoPage() {
           prompt: prompt.trim(),
           duration: Number(duration),
           ratio: ratio === "9:16" ? "720:1280" : "1280:720",
+          type: mode === "image" ? "IMAGE_TO_VIDEO" : "TEXT_TO_VIDEO",
+          imageUrl,
         }),
       });
 
@@ -160,8 +181,8 @@ export default function CreateVideoPage() {
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-violet-400/30 bg-violet-500/[0.04] px-5 py-8 text-center transition hover:bg-violet-500/[0.08]">
                 <Upload size={23} className="text-violet-300" />
                 <span className="mt-3 text-sm font-semibold text-slate-200">{fileName || "Choose an image to animate"}</span>
-                <span className="mt-1 text-xs text-slate-500">PNG, JPG or WEBP · upload integration pending</span>
-                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name || "")} />
+                <span className="mt-1 text-xs text-slate-500">PNG, JPG or WEBP · uploaded securely before generation</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0] || null; setImageFile(file); setFileName(file?.name || ""); }} />
               </label>
             </div>
           )}
@@ -179,7 +200,7 @@ export default function CreateVideoPage() {
           <button disabled={planning} onClick={handleGenerate} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-5 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/20 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">
             {planning ? <><Sparkles size={18} className="animate-spin" /> Generating video...</> : <><Video size={18} /> Generate video <Sparkles size={15} /></>}
           </button>
-          <p className="text-center text-[10px] text-slate-600">Runway text-to-video is connected. Each request generates one 5- or 10-second clip.</p>
+          <p className="text-center text-[10px] text-slate-600">Runway text-to-video and image-to-video · 5- or 10-second clips.</p>
 
           {generationStatus && (
             <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.05] p-4">

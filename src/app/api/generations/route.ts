@@ -48,12 +48,20 @@ export async function POST(request: NextRequest) {
     const prompt = String(body.prompt ?? "").trim();
     const duration = Number(body.duration ?? 5);
     const ratio = String(body.ratio ?? "1280:720");
+    const type = body.type === "IMAGE_TO_VIDEO" ? "IMAGE_TO_VIDEO" : "TEXT_TO_VIDEO";
+    const imageUrl = String(body.imageUrl ?? "");
 
     if (!prompt || prompt.length > 1000) {
       return NextResponse.json({ error: "Prompt must be 1–1000 characters." }, { status: 400 });
     }
     if (![5, 10].includes(duration)) {
       return NextResponse.json({ error: "Duration must be 5 or 10 seconds." }, { status: 400 });
+    }
+    if (type === "IMAGE_TO_VIDEO") {
+      const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, "");
+      if (!imageUrl || !publicBase || !imageUrl.startsWith(publicBase + "/")) {
+        return NextResponse.json({ error: "Upload an image to configured public storage first." }, { status: 400 });
+      }
     }
     if (!["1280:720", "720:1280"].includes(ratio)) {
       return NextResponse.json({ error: "Use landscape or portrait aspect ratio." }, { status: 400 });
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
           prompt,
           duration,
           aspectRatio: ratio === "720:1280" ? "9:16" : "16:9",
-          type: "TEXT_TO_VIDEO",
+          type,
           status: "QUEUED",
           creditsUsed: GENERATION_COST,
         },
@@ -95,12 +103,20 @@ export async function POST(request: NextRequest) {
     generationId = generation.id;
 
     const client = new RunwayML({ apiKey: process.env.RUNWAY_API_KEY });
-    const task = await client.textToVideo.create({
-      model: "gen4.5",
-      promptText: prompt,
-      ratio: ratio as "1280:720" | "720:1280",
-      duration,
-    });
+    const task = type === "IMAGE_TO_VIDEO"
+      ? await client.imageToVideo.create({
+          model: "gen4.5",
+          promptImage: imageUrl,
+          promptText: prompt,
+          ratio: ratio as "1280:720" | "720:1280",
+          duration,
+        })
+      : await client.textToVideo.create({
+          model: "gen4.5",
+          promptText: prompt,
+          ratio: ratio as "1280:720" | "720:1280",
+          duration,
+        });
 
     await prisma.videoGeneration.update({
       where: { id: generation.id },
@@ -118,6 +134,7 @@ export async function POST(request: NextRequest) {
       status: "SUBMITTED",
       duration,
       model: "gen4.5",
+      type,
       creditsUsed: GENERATION_COST,
     });
   } catch (error) {

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
   const config = [
-    process.env.S3_ENDPOINT, process.env.S3_ACCESS_KEY_ID,
+    process.env.S3_ENDPOINT, process.env.S3_PUBLIC_URL, process.env.S3_ACCESS_KEY_ID,
     process.env.S3_SECRET_ACCESS_KEY, process.env.S3_BUCKET,
   ];
   if (config.some((value) => !value)) {
@@ -54,8 +54,8 @@ export async function POST(request: Request) {
       ContentType: file.type,
     }));
 
-    const base = process.env.S3_PUBLIC_URL || process.env.S3_ENDPOINT!;
-    const url = `${base.replace(/\/$/, "")}/${process.env.S3_BUCKET}/${key}`;
+    const base = process.env.S3_PUBLIC_URL!;
+    const url = `${base.replace(/\/$/, "")}/${key}`;
     return NextResponse.json({ success: true, key, url, name: file.name, size: file.size });
   } catch (error) {
     console.error("Cloud upload failed:", error);

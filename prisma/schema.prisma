@@ -59,6 +59,7 @@ model User {
   generations       VideoGeneration[]
   transactions      CreditTransaction[]
   subscriptions     Subscription[]
+  paymentOrders     PaymentOrder[]
   settings          UserSettings?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -182,4 +183,22 @@ model Subscription {
   updatedAt          DateTime           @updatedAt
 
   @@index([userId, status])
+}
+
+
+model PaymentOrder {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  paymentId String?  @unique
+  packageId String
+  amount    Int
+  credits   Int
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
