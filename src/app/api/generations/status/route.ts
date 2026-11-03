@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const task = await client.tasks.retrieve(taskId);
     const state = String(task.status).toUpperCase();
     const output = "output" in task && Array.isArray(task.output) ? task.output : [];
-    const first = output[0];
+    const first: unknown = (output as unknown[])[0];
     const outputUrl =
       typeof first === "string"
         ? first
